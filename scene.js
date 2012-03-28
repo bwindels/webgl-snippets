@@ -83,6 +83,9 @@ GLSLProgram.prototype = {
     },
     attachBuffer: function(buffer, attributeName) {
         return buffer.bindToAttribute(this, attributeName);
+    },
+    createMesh: function() {
+        return new Mesh(this);
     }
 };
 
@@ -102,9 +105,37 @@ Buffer.prototype = {
         gl.enableVertexAttribArray(pointer);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
         gl.vertexAttribPointer(pointer, this.size, gl.FLOAT, false, 0, 0);
+    }
+};
+
+function Mesh(program) {
+    this.program = program;
+    this.buffers = {};
+    this.textures = {};
+}
+
+Mesh.prototype = {
+    attachBuffer: function(buffer, attributeName) {
+        this.buffers[attributeName] = buffer;
+    },
+    setVertexBuffer: function(buffer, attributeName) {
+        this.attachBuffer(buffer, attributeName);
+        this.faceCount = buffer.length / buffer.size;
+    },
+    attachTexture: function(texture, textureLocation, uniformName) {
+        this.textures[uniformName] = {location: textureLocation, texture: texture};
     },
     draw: function() {
-        this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, this.length / this.size);
+        var gl = this.program.gl;
+        Scene.useProgram(this.program);
+        Object.keys(this.buffers).forEach(function(bufferName) {
+            this.program.attachBuffer(this.buffers[bufferName], bufferName);
+        }, this);
+        Object.keys(this.textures).forEach(function(textureName) {
+            var textureDesc = this.textures[textureName];
+            this.program.attachTexture(textureDesc.texture, textureDesc.location, textureName);
+        }, this);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.faceCount);
     }
 };
 
@@ -135,10 +166,7 @@ var Scene = {
         this.program = program;
         var pMatrixPointer = program.getUniformLocation(program.pMatrixName);
         gl.uniformMatrix4fv(pMatrixPointer, false, this.pMatrix);
-        this._updateModelViewMatrix();
-    },
-    _updateModelViewMatrix: function() {
-        var gl = this.gl;
+        
         var mvMatrix = this.matrixStack[this.matrixStack.length - 1];
         var mvMatrixPointer = this.program.getUniformLocation(this.program.mvMatrixName);
         gl.uniformMatrix4fv(mvMatrixPointer, false, mvMatrix);
@@ -157,7 +185,6 @@ var Scene = {
     translate: function(x, y, z) {
         z = z || 0.0;
         mat4.translate(this.matrixStack[this.matrixStack.length - 1], [x, y, z]);
-        this._updateModelViewMatrix();
     },
     save: function() {
         var mvMatrix = this.matrixStack[this.matrixStack.length - 1];

@@ -46,14 +46,14 @@
                     document.getElementById('vertexShader').innerText,
                     document.getElementById('fragmentShader').innerText,
                     'uPMatrix', 'uMVMatrix');
+                var mesh = program.createMesh();
+                mesh.setVertexBuffer(vertices, 'vertex');
+                mesh.attachBuffer(textureCoordinates, 'textureCoordinate');
+                mesh.attachTexture(ballTexture, 0, 'uBallTexture');
                 
                 function drawScene() {
                     Scene.clear();
-                    Scene.useProgram(program);
-                    program.attachBuffer(vertices, 'vertex');
-                    program.attachBuffer(textureCoordinates, 'textureCoordinate');
-                    program.attachTexture(ballTexture, 0, 'uBallTexture');
-                    vertices.draw();
+                    mesh.draw();
                 }
                 drawScene();
             }
