@@ -160,10 +160,13 @@ var Scene = {
         this._updateModelViewMatrix();
     },
     save: function() {
-        
+        var mvMatrix = this.matrixStack[this.matrixStack.length - 1];
+        var copy = mat4.create();
+        mat4.set(mvMatrix, copy);
+        this.matrixStack.push(mvMatrix);
     },
     restore: function() {
-        
+        return this.matrixStack.pop();
     },
     createVertexBuffer: function(vertices) {
         return new Buffer(this.gl, vertices, 3);
