@@ -28,7 +28,7 @@
         </script>
         <script type="text/javascript" src="scene.js"></script>
         <script type="text/javascript">
-            function initScene(ballTexture) {
+            function prepareScene(ballTexture) {
                 Scene.setPerspectiveCamera(100.0, 0.1, 45);
                 var vertices = Scene.createVertexBuffer([
                     -2.0, -2.0, -5.0,
@@ -59,7 +59,7 @@
             }
             
             Scene.init('canvas');
-            Scene.loadTexture('texturetest.png', initScene);
+            Scene.loadTexture('texturetest.png', prepareScene);
         </script>
     </body>
 </html>
