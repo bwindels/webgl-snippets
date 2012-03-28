@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <canvas id="canvas" width="200" height="200"></canvas>
+        <script src="gl-matrix/gl-matrix-min.js"></script>
+        <script type="x-shader/x-vertex" id="vertexShader">        
+            attribute vec3 aVertexPosition;
+            attribute vec2 aTexCoord;
+            uniform mat4 uMVMatrix;
+            uniform mat4 uPMatrix;
+            
+            varying vec2 texCoord;
+            
+            void main(void) {
+                texCoord = aTexCoord;
+                gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+            }
+        </script>
+        <script type="x-shader/x-fragment" id="fragmentShader">
+            precision mediump float;
+            
+            uniform sampler2D uBallTexture;
+            varying vec2 texCoord;
+            
+            void main(void) {
+                gl_FragColor = texture2D(uBallTexture, vec2(texCoord.s, texCoord.t));
+                //gl_FragColor = vec4(texCoord.t, texCoord.s, 0.0, 1.0);
+                
+                //vec4(texCoord.s, texCoord.t, 1.0, 1.0);
+                //texture2D(uBallTexture, vec2(0.5, 0.33));
+                //vec4(texCoord.s, texCoord.t, 1.0, 1.0);
+            }
+        </script>
+        <script type="text/javascript">
+            var textureImage;
+
+            function loadTexture() {
+                textureImage = new Image();
+                textureImage.onload = function() {
+                    initGL();
+                };
+                textureImage.onerror = function() {
+                    alert('error loading texture');
+                }
+                textureImage.src = 'texturetest.png';
+            }
+            function initGL() {
+                function loadShader(gl, type, scriptId) {
+                    var shaderScript = document.getElementById(scriptId);
+                    var shaderSource = shaderScript.innerText;
+                    var shader = gl.createShader(type);
+                    gl.shaderSource(shader, shaderSource);
+                    gl.compileShader(shader);
+                    if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                        throw new Error('could not compile ' + (type === gl.FRAGMENT_SHADER ? 'fragment' : 'vertex') + ' shader '+scriptId+': '+gl.getShaderInfoLog(shader));
+                    }
+                    return shader;
+                }
+                
+                //init webgl
+                var canvas = document.getElementById('canvas');
+                var gl = canvas.getContext('experimental-webgl');
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                //init shaders
+                var fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, 'fragmentShader');
+                var vertexShader = loadShader(gl, gl.VERTEX_SHADER, 'vertexShader');
+                var program = gl.createProgram();
+                gl.attachShader(program, fragmentShader);
+                gl.attachShader(program, vertexShader);
+                gl.linkProgram(program);
+                if(!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    throw new Error('could not link shaders: '+gl.getProgramInfoLog(program));
+                }
+                //init texture
+                var texture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureImage);                
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.bindTexture(gl.TEXTURE_2D, null);
+                //init vertices
+                var vertices = [
+                    -0.5, -0.5, 0.0,
+                    -0.5, 0.5, 0.0,
+                    0.5, -0.5, 0.0,
+                    0.5, 0.5, 0.0
+                ];
+                var triangles = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, triangles);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+                //init texture coordinates
+                var texCoords = [
+                    0.8, 0.8,
+                    0.8, 1.0,
+                    1.0, 0.8,
+                    1.0, 1.0
+                ];
+                var texcoordBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
+                //init matrices
+                var mvMatrix = mat4.create(),
+                    pMatrix = mat4.create();
+                mat4.perspective(45, canvas.width / canvas.height, 0.1, 100.0, pMatrix);
+                mat4.identity(mvMatrix);
+                mat4.translate(mvMatrix, [0.0, 0.0, -1.4]);
+                
+                //load shader attributes and uniforms
+                gl.useProgram(program);
+                
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                
+                var texturePointer = gl.getUniformLocation(program, 'uBallTexture');
+                gl.uniform1i(texturePointer, 0);
+                var texCoordPointer = gl.getAttribLocation(program, 'aTexCoord');
+                gl.enableVertexAttribArray(texCoordPointer);
+                gl.bindBuffer(gl.ARRAY_BUFFER, texcoordBuffer);
+                gl.vertexAttribPointer(texCoordPointer, 2, gl.FLOAT, false, 0, 0);
+
+                var vertexPositionPointer = gl.getAttribLocation(program, 'aVertexPosition');
+                gl.enableVertexAttribArray(vertexPositionPointer);
+                gl.bindBuffer(gl.ARRAY_BUFFER, triangles);                
+                gl.vertexAttribPointer(vertexPositionPointer, 3, gl.FLOAT, false, 0, 0);
+                var mvMatrixPointer = gl.getUniformLocation(program, 'uMVMatrix');
+                gl.uniformMatrix4fv(mvMatrixPointer, false, mvMatrix);
+                var pMatrixPointer = gl.getUniformLocation(program, 'uPMatrix');
+                gl.uniformMatrix4fv(pMatrixPointer, false, pMatrix);
+                
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                
+                //draw triangles
+                
+                
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                
+            };
+            
+            loadTexture();
+        </script>
+    </body>
+</html>

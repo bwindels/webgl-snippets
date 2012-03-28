@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <canvas id="canvas" width="400" height="400"></canvas>
+        <script src="gl-matrix/gl-matrix-min.js"></script>
+        <script type="x-shader/x-vertex" id="vertexShader">        
+            attribute vec3 vertex;
+            attribute vec2 textureCoordinate;
+            uniform mat4 uMVMatrix;
+            uniform mat4 uPMatrix;
+            
+            varying vec2 texCoord;
+            
+            void main(void) {
+                texCoord = textureCoordinate;
+                gl_Position = uPMatrix * uMVMatrix * vec4(vertex, 1.0);
+            }
+        </script>
+        <script type="x-shader/x-fragment" id="fragmentShader">
+            precision mediump float;
+            
+            uniform sampler2D uBallTexture;
+            varying vec2 texCoord;
+            
+            void main(void) {
+                gl_FragColor = texture2D(uBallTexture, vec2(texCoord.s, texCoord.t));
+            }
+        </script>
+        <script type="text/javascript" src="scene.js"></script>
+        <script type="text/javascript">
+            function initScene(ballTexture) {
+                Scene.setPerspectiveCamera(100.0, 0.1, 45);
+                var vertices = Scene.createVertexBuffer([
+                    -2.0, -2.0, -5.0,
+                    -2.0, 2.0, -5.0,
+                    2.0, -2.0, -5.0,
+                    2.0, 2.0, -5.0
+                ]);
+                var textureCoordinates = Scene.createTextureCoordinateBuffer([
+                    0.8, 0.8,
+                    0.8, 1.0,
+                    1.0, 0.8,
+                    1.0, 1.0
+                ]);
+                var program = Scene.createProgram(
+                    document.getElementById('vertexShader').innerText,
+                    document.getElementById('fragmentShader').innerText,
+                    'uPMatrix', 'uMVMatrix');
+                
+                function drawScene() {
+                    Scene.clear();
+                    Scene.useProgram(program);
+                    program.attachBuffer(vertices, 'vertex');
+                    program.attachBuffer(textureCoordinates, 'textureCoordinate');
+                    program.attachTexture(ballTexture, 0, 'uBallTexture');
+                    vertices.draw();
+                }
+                drawScene();
+            }
+            
+            
+            
+            function start() {
+                Scene.init('canvas');
+                Scene.loadTexture('texturetest.png', initScene);
+            }
+            
+            start();
+        </script>
+    </body>
+</html>

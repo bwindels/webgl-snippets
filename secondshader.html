@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <canvas id="canvas" width="200" height="200"></canvas>
+        <script src="https://raw.github.com/toji/gl-matrix/master/gl-matrix-min.js"></script>
+        <script type="x-shader/x-vertex" id="vertexShader">        
+            attribute vec3 aVertexPosition;
+            
+            uniform mat4 uMVMatrix;
+            uniform mat4 uPMatrix;
+            
+            varying vec2 pos;
+            
+            void main(void) {
+                pos = aVertexPosition.xy;
+                gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+            }
+        </script>
+        <script type="x-shader/x-fragment" id="fragmentShader">
+            precision mediump float;
+            
+            const float lineWidth = 0.1;
+            const float doubleLineWidth = lineWidth * 2.0;
+            const float tripleLineWidth = lineWidth * 3.0;
+            
+            varying vec2 pos;
+            
+            void main(void) {
+                float w = mod(pos.x, doubleLineWidth);
+                float h = mod(pos.y, doubleLineWidth);
+                float c = h+w;
+                if(c <= lineWidth || (c >= doubleLineWidth && c < tripleLineWidth)) {
+                    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                } else {
+                    gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+                }
+            }
+        </script>
+        <script type="text/javascript">
+            (function() {
+                function loadShader(gl, type, scriptId) {
+                    var shaderScript = document.getElementById(scriptId);
+                    var shaderSource = shaderScript.innerText;
+                    var shader = gl.createShader(type);
+                    gl.shaderSource(shader, shaderSource);
+                    gl.compileShader(shader);
+                    if(!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                        throw new Error('could not compile ' + (type === gl.FRAGMENT_SHADER ? 'fragment' : 'vertex') + ' shader '+scriptId+': '+gl.getShaderInfoLog(shader));
+                    }
+                    return shader;
+                }
+                
+                //init webgl
+                var canvas = document.getElementById('canvas');
+                var gl = canvas.getContext('experimental-webgl');
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                //init shaders
+                var fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, 'fragmentShader');
+                var vertexShader = loadShader(gl, gl.VERTEX_SHADER, 'vertexShader');
+                var program = gl.createProgram();
+                gl.attachShader(program, fragmentShader);
+                gl.attachShader(program, vertexShader);
+                gl.linkProgram(program);
+                if(!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    throw new Error('could not link shaders: '+gl.getProgramInfoLog(program));
+                }
+                //init vertices
+                var triangles = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, triangles);
+                var vertices = [
+                    -0.5, -0.5, 0.0,
+                    -0.5, 0.5, 0.0,
+                    0.5, -0.5, 0.0,
+                    0.5, 0.5, 0.0
+                ];
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+                //init matrices
+                var mvMatrix = mat4.create(),
+                    pMatrix = mat4.create();
+                mat4.perspective(45, canvas.width / canvas.height, 0.1, 100.0, pMatrix);
+                mat4.identity(mvMatrix);
+                mat4.translate(mvMatrix, [0.0, 0.0, -1.2]);
+                
+                //load shader attributes and uniforms
+                gl.useProgram(program);
+                var vertexPositionPointer = gl.getAttribLocation(program, 'aVertexPosition');
+                gl.enableVertexAttribArray(vertexPositionPointer);
+                var mvMatrixPointer = gl.getUniformLocation(program, 'uMVMatrix');
+                var pMatrixPointer = gl.getUniformLocation(program, 'uPMatrix');
+                gl.uniformMatrix4fv(mvMatrixPointer, false, mvMatrix);
+                gl.uniformMatrix4fv(pMatrixPointer, false, pMatrix);
+                
+                
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                
+                //draw triangles
+                gl.bindBuffer(gl.ARRAY_BUFFER, triangles);                
+                gl.vertexAttribPointer(vertexPositionPointer, 3, gl.FLOAT, false, 0, 0);
+                
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                
+            })();
+        </script>
+    </body>
+</html>
